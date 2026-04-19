@@ -71,7 +71,7 @@ Each runner emits a `ModelResponse` per scenario. A `Rubric` attached to each sc
 | `openai:*` | OpenAI Chat Completions API | implemented (v0.3) |
 | `google:*` | Google Gemini API (no grounding) | stub |
 | `hf:*` | Hugging Face Inference endpoint | stub |
-| `vllm:*` | Local vLLM server | stub |
+| `vllm:*` | Local vLLM server | implemented (v0.4) |
 | `stub:echo` | Returns the prompt verbatim; deterministic; used for tests | implemented |
 | `stub:empty` | Returns the empty string; deterministic; used for failure-mode tests | implemented |
 
