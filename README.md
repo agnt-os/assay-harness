@@ -70,7 +70,7 @@ Each runner emits a `ModelResponse` per scenario. A `Rubric` attached to each sc
 | `anthropic:*` | Anthropic Messages API | implemented (v0.2) |
 | `openai:*` | OpenAI Chat Completions API | implemented (v0.3) |
 | `google:*` | Google Gemini API (no grounding) | stub |
-| `hf:*` | Hugging Face Inference endpoint | stub |
+| `hf:*` | Hugging Face Inference endpoint | implemented (v0.4) |
 | `vllm:*` | Local vLLM server | stub |
 | `stub:echo` | Returns the prompt verbatim; deterministic; used for tests | implemented |
 | `stub:empty` | Returns the empty string; deterministic; used for failure-mode tests | implemented |
