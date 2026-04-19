@@ -1,6 +1,6 @@
 {
   "name": "assay-harness",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Open evaluation harness for the Agentsia Labs benchmark series.",
   "license": "Apache-2.0",
   "type": "module",
@@ -28,7 +28,8 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.90.0",
-    "commander": "^12.1.0"
+    "commander": "^12.1.0",
+    "openai": "^6.34.0"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
