@@ -18,7 +18,10 @@ jobs:
   quality-context:
     name: Quality context
     if: github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: [self-hosted, Linux, ARM64, spark]
+    # assay-harness is public and the org self-hosted runner group is not
+    # exposed to public repositories. Keep this on GitHub-hosted runners rather
+    # than widening self-hosted runner access.
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
@@ -42,7 +45,7 @@ jobs:
     name: Codex review
     needs: quality-context
     if: github.event.pull_request.draft == false && github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: [self-hosted, Linux, ARM64, spark]
+    runs-on: ubuntu-latest
     env:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
     outputs:
@@ -119,7 +122,7 @@ jobs:
     name: Post Codex feedback
     needs: codex-review
     if: needs.codex-review.outputs.final_message != ''
-    runs-on: [self-hosted, Linux, ARM64, spark]
+    runs-on: ubuntu-latest
     steps:
       - name: Report Codex feedback
         uses: actions/github-script@v7
