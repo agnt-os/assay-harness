@@ -1,0 +1,72 @@
+name: Claude Code Review
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
+
+jobs:
+  claude-review:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: [self-hosted, Linux, ARM64, spark]
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: read
+      id-token: write
+      actions: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect review workflow edits
+        id: workflow-edits
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          if git diff --name-only "$BASE_SHA" "$HEAD_SHA" | grep -Eqx '.github/workflows/(claude-code-review|codex-review)\.yml'; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "Skipping Claude action because this PR modifies AI review workflows."
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run Claude Code Review
+        if: steps.workflow-edits.outputs.skip != 'true'
+        id: claude-review
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: |
+            Please review this pull request for:
+            - Correctness and benchmark integrity
+            - Reproducibility and deterministic evidence
+            - Provider adapter regressions
+            - Public API stability
+            - Security and data leakage
+            - Test coverage
+
+            Apply the Agentsia and Modelsmith strategy context:
+            - Assay is the open clean-room evaluator for Labs benchmark
+              releases. It must remain separate from proprietary Modelsmith
+              scenario generation, post-training, promotion, private datasets,
+              private configs, and customer artefacts.
+            - Review against Modelsmith's product-strategy pillars: closed
+              iterate loop, agent-native operating model, domain specialist
+              factory, promotion governance, config-driven lifecycle,
+              compounding knowledge moat, and fleet intelligence.
+            - Apply Platform Autonomy Principles where this harness touches
+              automation: manual constants, quick fixes, user-decision pauses,
+              stale-data drift, temporary monitor-style checks, and single-node
+              orchestration assumptions are bugs or platform gaps unless
+              explicitly justified.
+            - Do not suggest exposing private prompts, datasets, rubrics,
+              adapter paths, hostnames, tokens, or opaque artefact IDs in this
+              public evaluator.
+
+            Leave concise, actionable feedback on the PR.
+          claude_args: '--allowed-tools "Bash(gh issue view:*),Bash(gh search:*),Bash(gh issue list:*),Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*)"'
