@@ -102,7 +102,7 @@ jobs:
             - Review against the Modelsmith product strategy principles:
               closed iterate loop, agent-native operating model, domain
               specialist factory, promotion governance, config-driven lifecycle,
-              compounding knowledge moat, and fleet intelligence.
+              compounding knowledge moat, fleet intelligence, and agentic experimentation.
             - Apply Platform Autonomy Principles where Assay touches automation:
               avoid manual constants, quick fixes, user-decision pauses,
               stale-data drift, temporary monitor-style checks, and single-node
