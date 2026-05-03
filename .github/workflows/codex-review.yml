@@ -6,7 +6,7 @@ on:
     types: [opened, reopened, synchronize, ready_for_review]
 
 concurrency:
-  group: codex-review-${{ github.event.pull_request.number }}
+  group: codex-review-\${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 permissions:
@@ -25,7 +25,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: refs/pull/${{ github.event.pull_request.number }}/merge
+          ref: refs/pull/\${{ github.event.pull_request.number }}/merge
       - uses: pnpm/action-setup@v4
         with:
           version: 9
@@ -47,76 +47,59 @@ jobs:
     if: github.event.pull_request.draft == false && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     env:
-      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      OPENAI_API_KEY: \${{ secrets.OPENAI_API_KEY }}
     outputs:
-      final_message: ${{ steps.run-codex.outputs.final-message }}
+      final_message: \${{ steps.run-codex.outputs.final-message }}
     steps:
       - name: Check Codex secret
         id: config
         run: |
-          if [ -n "$OPENAI_API_KEY" ]; then
-            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          if [ -n "\$OPENAI_API_KEY" ]; then
+            echo "enabled=true" >> "\$GITHUB_OUTPUT"
           else
-            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "enabled=false" >> "\$GITHUB_OUTPUT"
             echo "OPENAI_API_KEY is not configured. Quality checks ran, but Codex review is skipped."
           fi
       - uses: actions/checkout@v4
         if: steps.config.outputs.enabled == 'true'
         with:
-          ref: refs/pull/${{ github.event.pull_request.number }}/merge
+          ref: refs/pull/\${{ github.event.pull_request.number }}/merge
       - name: Fetch base and head refs
         if: steps.config.outputs.enabled == 'true'
         env:
-          PR_BASE_REF: ${{ github.event.pull_request.base.ref }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_BASE_REF: \${{ github.event.pull_request.base.ref }}
+          PR_NUMBER: \${{ github.event.pull_request.number }}
         run: |
           set -euo pipefail
           git fetch --no-tags origin \
-            "$PR_BASE_REF" \
-            "+refs/pull/$PR_NUMBER/head"
+            "\$PR_BASE_REF" \
+            "+refs/pull/\$PR_NUMBER/head"
       - name: Run Codex review
         if: steps.config.outputs.enabled == 'true'
         id: run-codex
         uses: openai/codex-action@v1
         with:
-          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          openai-api-key: \${{ secrets.OPENAI_API_KEY }}
           sandbox: read-only
           prompt: |
-            This is PR #${{ github.event.pull_request.number }} for ${{ github.repository }}.
+            You are the first agent in a three-part "Chain of Review" (Codex -> Gemini -> Claude).
+            Your role is "The Implementation & Hygiene Expert".
 
-            Review only the changes introduced by the PR. Quality context has
-            already run typecheck, tests, and build.
+            Review only the changes introduced by the PR. Focus exclusively on:
+            - Benchmark implementation hygiene: code structure, naming, and readability.
+            - Provider adapter correctness and type safety.
+            - Deterministic behaviour: ensure seed/config/version are handled correctly.
+            - Performance micro-optimizations in evaluation loops.
 
-            Focus on correctness, benchmark integrity, reproducibility,
-            provider-adapter behaviour, public API stability, security,
-            maintainability, and regressions introduced by this PR.
-
-            Agentsia and Modelsmith review principles:
-            - Assay is the clean-room evaluator for Labs benchmark releases. It
-              must not import proprietary Modelsmith scenario generation,
-              post-training, promotion, private datasets, private configs, or
-              customer artefacts.
-            - Public benchmark behaviour must stay reproducible and auditable.
-              Flag changes that make runs non-deterministic without recording
-              seed/config/provider/version context.
-            - Review against the Modelsmith product strategy principles:
-              closed iterate loop, agent-native operating model, domain
-              specialist factory, promotion governance, config-driven lifecycle,
-              compounding knowledge moat, fleet intelligence, and agentic experimentation.
-            - Apply Platform Autonomy Principles where Assay touches automation:
-              avoid manual constants, quick fixes, user-decision pauses,
-              stale-data drift, temporary monitor-style checks, and single-node
-              orchestration assumptions unless explicitly justified.
-            - Distinguish public/open evaluator code from proprietary
-              Modelsmith control-plane code. Do not suggest leaking private
-              prompts, datasets, rubrics, adapter paths, hostnames, tokens, or
-              opaque artefact IDs into Assay.
+            Do NOT focus on high-level architecture, Labs strategic alignment, or 
+            evaluator standards; subsequent agents (Gemini and Claude) will handle 
+            those domains.
 
             Pull request title:
-            ${{ github.event.pull_request.title }}
+            \${{ github.event.pull_request.title }}
 
             Pull request body:
-            ${{ github.event.pull_request.body }}
+            \${{ github.event.pull_request.body }}
 
   post-feedback:
     name: Post Codex feedback
@@ -127,9 +110,9 @@ jobs:
       - name: Report Codex feedback
         uses: actions/github-script@v7
         env:
-          CODEX_FINAL_MESSAGE: ${{ needs.codex-review.outputs.final_message }}
+          CODEX_FINAL_MESSAGE: \${{ needs.codex-review.outputs.final_message }}
         with:
-          github-token: ${{ github.token }}
+          github-token: \${{ github.token }}
           script: |
             await github.rest.issues.createComment({
               owner: context.repo.owner,

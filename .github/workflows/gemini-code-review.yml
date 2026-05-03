@@ -6,12 +6,13 @@ on:
     types: [opened, synchronize, reopened, ready_for_review]
 
 concurrency:
-  group: gemini-review-${{ github.event.pull_request.number }}
+  group: gemini-review-\${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
   gemini-review:
-    if: github.event.pull_request.head.repo.full_name == github.repository
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.draft == false
+    needs: codex-review
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -28,50 +29,49 @@ jobs:
       - name: Detect review workflow edits
         id: workflow-edits
         env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BASE_SHA: \${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: \${{ github.event.pull_request.head.sha }}
         run: |
           set -euo pipefail
-          if git diff --name-only "$BASE_SHA" "$HEAD_SHA" | grep -Eqx '.github/workflows/(gemini-code-review|claude-code-review|codex-review)\.yml'; then
-            echo "skip=true" >> "$GITHUB_OUTPUT"
+          if git diff --name-only "\$BASE_SHA" "\$HEAD_SHA" | grep -Eqx '.github/workflows/(gemini-code-review|claude-code-review|codex-review)\.yml'; then
+            echo "skip=true" >> "\$GITHUB_OUTPUT"
             echo "Skipping Gemini review because this PR modifies AI review workflows."
           else
-            echo "skip=false" >> "$GITHUB_OUTPUT"
+            echo "skip=false" >> "\$GITHUB_OUTPUT"
           fi
+
+      - name: Fetch existing comments
+        if: steps.workflow-edits.outputs.skip != 'true'
+        id: fetch-comments
+        env:
+          GH_TOKEN: \${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          gh pr view \${{ github.event.pull_request.number }} --json comments --template '{{range .comments}}{{.author.login}}: {{.body}}{{end}}' > pr_comments.txt
 
       - name: Run Gemini Review
         if: steps.workflow-edits.outputs.skip != 'true'
         env:
-          GOOGLE_CLOUD_ACCESS_TOKEN: ${{ secrets.GEMINI_CLI_OAUTH_TOKEN }}
+          GOOGLE_CLOUD_ACCESS_TOKEN: \${{ secrets.GEMINI_CLI_OAUTH_TOKEN }}
           GEMINI_TRUST_WORKSPACE: "true"
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: \${{ secrets.GITHUB_TOKEN }}
         run: |
-          npx -y @google/gemini-cli --yolo --prompt "Please review this pull request for:
-          - Correctness and benchmark integrity
-          - Reproducibility and deterministic evidence
-          - Provider adapter regressions
-          - Public API stability
-          - Security and data leakage
-          - Test coverage
+          PREVIOUS_COMMENTS=\$(cat pr_comments.txt)
 
-          Apply the Agentsia and Modelsmith strategy context:
-          - Assay is the open clean-room evaluator for Labs benchmark
-            releases. It must remain separate from proprietary Modelsmith
-            scenario generation, post-training, promotion, private datasets,
-            private configs, and customer artefacts.
-          - Review against Modelsmith's product-strategy pillars: closed
-            iterate loop, agent-native operating model, domain specialist
-            factory, promotion governance, config-driven lifecycle,
-            compounding knowledge moat, fleet intelligence, and agentic experimentation.
-          - Apply Platform Autonomy Principles where this harness touches
-            automation: manual constants, quick fixes, user-decision pauses,
-            stale-data drift, temporary monitor-style checks, and single-node
-            orchestration assumptions are bugs or platform gaps unless
-            explicitly justified.
-          - Do not suggest exposing private prompts, datasets, rubrics,
-            adapter paths, hostnames, tokens, or opaque artefact IDs in this
-            public evaluator.
+          npx -y @google/gemini-cli --yolo --prompt "You are the second agent in a three-part \"Chain of Review\" (Codex -> Gemini -> Claude).
+          Your role is \"The Logic & Boundary Expert\".
 
-          Leave concise, actionable feedback on the PR.
-          
-          Use 'git diff origin/${{ github.base_ref }}...HEAD' to see the changes."
+          Please review this pull request for:
+          - Logical correctness of evaluation scenarios and benchmark scoring.
+          - Reproducibility and edge cases in data handling or provider responses.
+          - Public API stability and boundary between open Assay and private Modelsmith.
+          - Adherence to Platform Autonomy Principles where this harness touches automation.
+
+          IMPORTANT: Read the existing PR comments below from previous agents (like Codex). 
+          Do NOT repeat feedback that has already been provided. Instead, build on it 
+          or pivot to logic concerns that the previous agent might have missed.
+
+          EXISTING COMMENTS:
+          \${PREVIOUS_COMMENTS}
+
+          Use 'git diff origin/\${{ github.base_ref }}...HEAD' to see the changes."
