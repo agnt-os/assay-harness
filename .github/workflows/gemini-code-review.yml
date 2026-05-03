@@ -13,6 +13,7 @@ jobs:
   gemini-review:
     if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.draft == false
     needs: codex-review
+    if: always() && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.draft == false && (needs.codex-review.result == 'success' || needs.codex-review.result == 'failure' || needs.codex-review.result == 'skipped')
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -58,18 +59,22 @@ jobs:
         run: |
           PREVIOUS_COMMENTS=\$(cat pr_comments.txt)
 
-          npx -y @google/gemini-cli --yolo --prompt "You are the second agent in a three-part \"Chain of Review\" (Codex -> Gemini -> Claude).
+          npx -y @google/gemini-cli --yolo --prompt "### Gemini Review: Logic & Boundaries
+
+          You are the second agent in a three-part \"Chain of Review\" (Codex -> Gemini -> Claude).
           Your role is \"The Logic & Boundary Expert\".
 
-          Please review this pull request for:
+          IMPORTANT: Read the existing PR comments below.
+
+          1. TAKEOVER LOGIC: If you do NOT see a comment starting with \"### Codex Review\", the previous agent likely failed (e.g., quota exhaustion). In this case, YOU must also perform the Implementation Hygiene review (naming, structure, adapters) in addition to your Logic review.
+
+          2. AVOID DUPLICATION: Do NOT repeat feedback that has already been provided by Codex. Build on existing comments or pivot to logic concerns they missed.
+
+          PRIMARY FOCUS (Logic & Boundaries):
           - Logical correctness of evaluation scenarios and benchmark scoring.
           - Reproducibility and edge cases in data handling or provider responses.
           - Public API stability and boundary between open Assay and private Modelsmith.
           - Adherence to Platform Autonomy Principles where this harness touches automation.
-
-          IMPORTANT: Read the existing PR comments below from previous agents (like Codex). 
-          Do NOT repeat feedback that has already been provided. Instead, build on it 
-          or pivot to logic concerns that the previous agent might have missed.
 
           EXISTING COMMENTS:
           \${PREVIOUS_COMMENTS}

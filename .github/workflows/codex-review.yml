@@ -82,6 +82,8 @@ jobs:
           openai-api-key: \${{ secrets.OPENAI_API_KEY }}
           sandbox: read-only
           prompt: |
+            ### Codex Review: Implementation & Hygiene
+
             You are the first agent in a three-part "Chain of Review" (Codex -> Gemini -> Claude).
             Your role is "The Implementation & Hygiene Expert".
 
