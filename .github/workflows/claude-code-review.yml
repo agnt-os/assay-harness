@@ -6,12 +6,12 @@ on:
     types: [opened, synchronize, reopened, ready_for_review]
 
 concurrency:
-  group: claude-review-\${{ github.event.pull_request.number }}
+  group: claude-review-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
   claude-review:
-    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.draft == false
+    name: Claude review
     needs: gemini-review
     if: always() && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.draft == false && (needs.gemini-review.result == 'success' || needs.gemini-review.result == 'failure' || needs.gemini-review.result == 'skipped')
     runs-on: ubuntu-latest
@@ -30,32 +30,32 @@ jobs:
       - name: Detect review workflow edits
         id: workflow-edits
         env:
-          BASE_SHA: \${{ github.event.pull_request.base.sha }}
-          HEAD_SHA: \${{ github.event.pull_request.head.sha }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           set -euo pipefail
-          if git diff --name-only "\$BASE_SHA" "\$HEAD_SHA" | grep -Eqx '.github/workflows/(gemini-code-review|claude-code-review|codex-review)\.yml'; then
-            echo "skip=true" >> "\$GITHUB_OUTPUT"
+          if git diff --name-only "$BASE_SHA" "$HEAD_SHA" | grep -Eqx '.github/workflows/(gemini-code-review|claude-code-review|codex-review)\.yml'; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
             echo "Skipping Claude action because this PR modifies AI review workflows."
           else
-            echo "skip=false" >> "\$GITHUB_OUTPUT"
+            echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Fetch existing comments
         if: steps.workflow-edits.outputs.skip != 'true'
         id: fetch-comments
         env:
-          GH_TOKEN: \${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          gh pr view \${{ github.event.pull_request.number }} --json comments --template '{{range .comments}}{{.author.login}}: {{.body}}{{end}}' > pr_comments.txt
+          gh pr view ${{ github.event.pull_request.number }} --json comments --template '{{range .comments}}{{.author.login}}: {{.body}}{{end}}' > pr_comments.txt
 
       - name: Run Claude Code Review
         if: steps.workflow-edits.outputs.skip != 'true'
         id: claude-review
         uses: anthropics/claude-code-action@v1
         with:
-          claude_code_oauth_token: \${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt: |
             ### Claude Review: Architecture & Strategy
 
