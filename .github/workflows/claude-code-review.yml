@@ -13,6 +13,7 @@ jobs:
   claude-review:
     if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.draft == false
     needs: gemini-review
+    if: always() && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.draft == false && (needs.gemini-review.result == 'success' || needs.gemini-review.result == 'failure' || needs.gemini-review.result == 'skipped')
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -56,18 +57,24 @@ jobs:
         with:
           claude_code_oauth_token: \${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt: |
+            ### Claude Review: Architecture & Strategy
+
             You are the final agent in a three-part "Chain of Review" (Codex -> Gemini -> Claude).
             Your role is "The Architect & Strategist".
 
-            Please review this pull request for:
+            IMPORTANT: Read the existing PR comments below.
+
+            1. TAKEOVER LOGIC:
+               - If "### Codex Review" is missing, YOU must also cover Implementation Hygiene.
+               - If "### Gemini Review" is missing, YOU must also cover Logic & Boundaries.
+
+            2. AVOID DUPLICATION: Do NOT repeat feedback from Codex or Gemini. Provide the "final word" on architectural direction.
+
+            PRIMARY FOCUS (Architecture & Strategy):
             - Strategic fit for Labs benchmark releases and Assay clean-room standards.
             - Alignment with Modelsmith's product-strategy pillars.
             - High-level architectural integrity and public evaluator boundaries.
             - Security and data leakage (ensuring private prompts/datasets stay separate).
-
-            IMPORTANT: Read the existing PR comments below from previous agents (Codex and Gemini).
-            Do NOT repeat feedback that has already been provided. Your goal is to provide 
-            the "final word" on architectural and strategic direction.
 
             EXISTING COMMENTS:
             $(cat pr_comments.txt)
