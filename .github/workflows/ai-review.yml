@@ -1,18 +1,20 @@
-name: Codex Review
+name: AI Code Review
 
 on:
   pull_request:
     branches: [main]
-    types: [opened, reopened, synchronize, ready_for_review]
+    types: [opened, synchronize, reopened, ready_for_review]
 
 concurrency:
-  group: codex-review-${{ github.event.pull_request.number }}
+  group: ai-review-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 permissions:
   contents: read
   issues: write
   pull-requests: write
+  id-token: write
+  actions: read
 
 jobs:
   quality-context:
@@ -63,14 +65,11 @@ jobs:
           ref: refs/pull/${{ github.event.pull_request.number }}/merge
       - name: Fetch base and head refs
         if: steps.config.outputs.enabled == 'true'
-        env:
-          PR_BASE_REF: ${{ github.event.pull_request.base.ref }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           set -euo pipefail
           git fetch --no-tags origin \
-            "$PR_BASE_REF" \
-            "+refs/pull/$PR_NUMBER/head"
+            "${{ github.event.pull_request.base.ref }}" \
+            "+refs/pull/${{ github.event.pull_request.number }}/head"
       - name: Run Codex review
         if: steps.config.outputs.enabled == 'true'
         id: run-codex
@@ -87,18 +86,12 @@ jobs:
             Review only the changes introduced by the PR. Focus exclusively on:
             - Benchmark implementation hygiene: code structure, naming, and readability.
             - Provider adapter correctness and type safety.
-            - Deterministic behaviour: ensure seed/config/version are handled correctly.
-            - Performance micro-optimizations in evaluation loops.
+            - Deterministic behaviour.
+            - Performance micro-optimizations.
 
-            Do NOT focus on high-level architecture, Labs strategic alignment, or 
-            evaluator standards; subsequent agents (Gemini and Claude) will handle 
-            those domains.
+            Do NOT focus on architecture or strategic alignment.
 
-            Pull request title:
-            ${{ github.event.pull_request.title }}
-
-            Pull request body:
-            ${{ github.event.pull_request.body }}
+            Pull request title: ${{ github.event.pull_request.title }}
 
   post-feedback:
     name: Post Codex feedback
@@ -111,7 +104,6 @@ jobs:
         env:
           CODEX_FINAL_MESSAGE: ${{ needs.codex-review.outputs.final_message }}
         with:
-          github-token: ${{ github.token }}
           script: |
             await github.rest.issues.createComment({
               owner: context.repo.owner,
@@ -119,3 +111,46 @@ jobs:
               issue_number: context.payload.pull_request.number,
               body: process.env.CODEX_FINAL_MESSAGE,
             });
+
+  gemini-review:
+    name: Gemini review
+    needs: [quality-context, codex-review]
+    if: always() && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.draft == false && (needs.codex-review.result == 'success' || needs.codex-review.result == 'failure' || needs.codex-review.result == 'skipped')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch comments
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr view ${{ github.event.pull_request.number }} --json comments --template '{{range .comments}}{{.author.login}}: {{.body}}{{end}}' > pr_comments.txt
+      - name: Run Gemini Review
+        env:
+          GOOGLE_CLOUD_ACCESS_TOKEN: ${{ secrets.GEMINI_CLI_OAUTH_TOKEN }}
+          GEMINI_TRUST_WORKSPACE: "true"
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PREVIOUS_COMMENTS=$(cat pr_comments.txt)
+          npx -y @google/gemini-cli --yolo --prompt "### Gemini Review: Logic & Boundaries
+          Take over hygiene if ### Codex Review is missing. Build on existing comments."
+
+  claude-review:
+    name: Claude review
+    needs: [quality-context, gemini-review]
+    if: always() && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.draft == false && (needs.gemini-review.result == 'success' || needs.gemini-review.result == 'failure' || needs.gemini-review.result == 'skipped')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch comments
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr view ${{ github.event.pull_request.number }} --json comments --template '{{range .comments}}{{.author.login}}: {{.body}}{{end}}' > pr_comments.txt
+      - name: Run Claude Review
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: |
+            ### Claude Review: Architecture & Strategy
+            Take over if Codex or Gemini headers are missing. Build on previous.
+          claude_args: '--allowed-tools "Bash(gh issue view:*),Bash(gh search:*),Bash(gh issue list:*),Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*)"'
