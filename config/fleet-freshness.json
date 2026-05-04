@@ -1,0 +1,34 @@
+{
+  "$schema": "./fleet-freshness.schema.json",
+  "version": "1.0.0",
+  "description": "Freshness gate for fleet nodes that must work from current code and staged data.",
+  "repos": [
+    {
+      "name": "Modelsmith",
+      "path": "../Modelsmith",
+      "required": true,
+      "dataArtifacts": [
+        "data/local-retailer-scraping.db",
+        "analyzer.db"
+      ]
+    },
+    {
+      "name": "agentsia-web",
+      "path": "../agentsia-web",
+      "required": true,
+      "dataArtifacts": []
+    },
+    {
+      "name": "assay-harness",
+      "path": ".",
+      "required": true,
+      "dataArtifacts": []
+    }
+  ],
+  "remote": {
+    "clustersConfig": "../Modelsmith/config/clusters.json",
+    "hostsPath": "defaults.training_hosts",
+    "sshConnectTimeoutSeconds": 5,
+    "remoteRepoPathFallback": "/home/adoosh/Documents/Repos/priv/Modelsmith"
+  }
+}

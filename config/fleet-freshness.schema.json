@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Fleet freshness gate config",
+  "type": "object",
+  "required": ["version", "repos", "remote"],
+  "properties": {
+    "version": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "repos": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["name", "path", "required", "dataArtifacts"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "path": {
+            "type": "string",
+            "minLength": 1
+          },
+          "required": {
+            "type": "boolean"
+          },
+          "dataArtifacts": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "remote": {
+      "type": "object",
+      "required": [
+        "clustersConfig",
+        "hostsPath",
+        "sshConnectTimeoutSeconds",
+        "remoteRepoPathFallback"
+      ],
+      "properties": {
+        "clustersConfig": {
+          "type": "string",
+          "minLength": 1
+        },
+        "hostsPath": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sshConnectTimeoutSeconds": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "remoteRepoPathFallback": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

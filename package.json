@@ -21,6 +21,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "assay": "tsx src/cli.ts",
+    "fleet:freshness": "tsx scripts/fleet-freshness.ts",
     "prepublishOnly": "pnpm build"
   },
   "engines": {
