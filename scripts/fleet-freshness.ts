@@ -9,6 +9,7 @@ type RepoConfig = {
   path: string;
   required: boolean;
   dataArtifacts: string[];
+  ignoredDirtyPaths?: string[];
 };
 
 type FreshnessConfig = {
@@ -112,6 +113,15 @@ function fingerprintArtifact(repoPath: string, relativeArtifactPath: string): Da
   };
 }
 
+function dirtyPathFromStatusLine(line: string) {
+  const rawPath = line.slice(3);
+  const renameSeparator = ' -> ';
+  const normalizedPath = rawPath.includes(renameSeparator)
+    ? rawPath.slice(rawPath.indexOf(renameSeparator) + renameSeparator.length)
+    : rawPath;
+  return normalizedPath.replace(/^"|"$/g, '');
+}
+
 function checkRepo(repo: RepoConfig, options: { noFetch: boolean }): RepoReport {
   const absoluteRepoPath = path.resolve(repoRoot, repo.path);
   const report: RepoReport = {
@@ -149,7 +159,14 @@ function checkRepo(repo: RepoConfig, options: { noFetch: boolean }): RepoReport 
 
   report.branch = branch.stdout || 'DETACHED';
   report.head = head.stdout || undefined;
-  report.dirty = dirty.stdout.length > 0;
+  const ignoredDirtyPaths = new Set(repo.ignoredDirtyPaths ?? []);
+  const dirtyPaths = dirty.stdout
+    .split('\n')
+    .map((line) => line.trimEnd())
+    .filter(Boolean)
+    .map(dirtyPathFromStatusLine)
+    .filter((dirtyPath) => !ignoredDirtyPaths.has(dirtyPath));
+  report.dirty = dirtyPaths.length > 0;
 
   if (upstream.status !== 0) {
     report.errors.push('branch has no upstream tracking branch');
@@ -173,10 +190,15 @@ function checkRepo(repo: RepoConfig, options: { noFetch: boolean }): RepoReport 
   }
 
   if (report.dirty) {
-    report.errors.push('worktree has local modifications');
+    report.errors.push(`worktree has local modifications: ${dirtyPaths.join(', ')}`);
   }
 
   report.dataArtifacts = repo.dataArtifacts.map((artifact) => fingerprintArtifact(absoluteRepoPath, artifact));
+  for (const artifact of report.dataArtifacts) {
+    if (!artifact.exists) {
+      report.errors.push(`required data artifact is missing: ${artifact.path}`);
+    }
+  }
   report.ok = report.errors.length === 0;
   return report;
 }

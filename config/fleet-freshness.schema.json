@@ -34,6 +34,13 @@
               "type": "string",
               "minLength": 1
             }
+          },
+          "ignoredDirtyPaths": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
           }
         },
         "additionalProperties": false

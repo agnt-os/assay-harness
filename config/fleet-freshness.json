@@ -10,19 +10,24 @@
       "dataArtifacts": [
         "data/local-retailer-scraping.db",
         "analyzer.db"
+      ],
+      "ignoredDirtyPaths": [
+        ".claude/scheduled_tasks.lock"
       ]
     },
     {
       "name": "agentsia-web",
       "path": "../agentsia-web",
       "required": true,
-      "dataArtifacts": []
+      "dataArtifacts": [],
+      "ignoredDirtyPaths": []
     },
     {
       "name": "assay-harness",
       "path": ".",
       "required": true,
-      "dataArtifacts": []
+      "dataArtifacts": [],
+      "ignoredDirtyPaths": []
     }
   ],
   "remote": {
